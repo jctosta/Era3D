@@ -1,0 +1,56 @@
+services:
+  multiview_generation:
+    image: jctosta/era3d:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    runtime: nvidia
+    volumes:
+      - ./examples:/app/examples
+      - ./mv_res:/app/mv_res
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+      CONFIG: configs/test_unclip-512-6view.yaml
+      PRETRAINED_MODEL_NAME_OR_PATH: ./pengHTYX/MacLab-Era3D-512-6view
+      VALIDATION_DATASET_CROP_SIZE: '420'
+      VALIDATION_DATASET_ROOT_DIR: examples
+      SEED: '600'
+      SAVE_DIR: mv_res
+      SAVE_MODE: rgb
+    env_file:
+      - .env
+    command: >
+      conda run --no-capture-output -n Era3D /bin/bash -c ". /root/.bashrc && python test_mvdiffusion_unclip.py --config $CONFIG \
+      pretrained_model_name_or_path=$PRETRAINED_MODEL_NAME_OR_PATH \
+      validation_dataset.crop_size=$VALIDATION_DATASET_CROP_SIZE \
+      validation_dataset.root_dir=$VALIDATION_DATASET_ROOT_DIR \
+      seed=$SEED \
+      save_dir=$SAVE_DIR \
+      save_mode=$SAVE_MODE"
+  mesh_extraction:
+    image: jctosta/era3d:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    runtime: nvidia
+    depends_on:
+      - multiview_generation
+    environment:
+      - GPU=0
+      - CASE=A_bulldog_with_a_black_pirate_hat_rgba
+      - OUTPUT_DIR=/app/output
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - ./output:/app/output
+      - ./examples:/app/examples
+      - ./mv_res:/app/mv_res
+    command: ["0 A_bulldog_with_a_black_pirate_hat_rgba /app/output"]
+
+volumes:
+  output:
+  examples:
+  mv_res:
